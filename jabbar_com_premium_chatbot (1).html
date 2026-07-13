@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>jabbar.com | المساعد الذكي الموثق</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- مكتبة Tesseract.js للذكاء الاصطناعي وقراءة الصور -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <style>
+        :root {
+            --wa-teal: #005c4b;
+            --wa-teal-light: #008069;
+            --wa-green: #25d366;
+            --wa-bg: #efeae2;
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #0f172a; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* شاشة التحميل الافتتاحية */
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #075e54, #128c7e);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+        .loader-ring {
+            width: 80px; height: 80px;
+            border: 5px solid rgba(255,255,255,0.2);
+            border-top: 5px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* خلفية الواتساب المتميزة */
+        .chat-wallpaper {
+            background-color: #efeae2;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='%23e5ddd5' fill-opacity='0.4'%3E%3Cpath d='M50 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zM10 10c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10S0 25.523 0 20s4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zm40-8c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10s-10-4.477-10-10 4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8zM10 50c0-5.523 4.477-10 10-10s10 4.477 10 10-4.477 10-10 10c0 5.523-4.477 10-10 10S0 65.523 0 60s4.477-10 10-10zm10 8c4.418 0 8-3.582 8-8s-3.582-8-8-8-8 3.582-8 8 3.582 8 8 8z'/%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .chat-scroll::-webkit-scrollbar { width: 5px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: #b4b9be; border-radius: 10px; }
+        
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(15px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .msg-animate { animation: slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        
+        .typing-dot {
+            width: 6px; height: 6px;
+            background-color: var(--wa-teal);
+            border-radius: 50%;
+            display: inline-block;
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.4); opacity: 0.4; }
+            40% { transform: scale(1.1); opacity: 1; }
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(226, 232, 240, 0.8);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+        }
+        .card-shadow { box-shadow: 0 4px 15px -3px rgba(0,0,0,0.05); }
+
+        /* تأثير المسح الضوئي */
+        .lens-scanner {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            background: #000;
+            border-radius: 16px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .lens-scanner::before {
+            content: ''; position: absolute; inset: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+        }
+        .lens-corner {
+            position: absolute; width: 20px; height: 20px;
+            border-color: #25d366; border-style: solid; z-index: 2;
+        }
+        .lc-tl { top: 10px; left: 10px; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+        .lc-tr { top: 10px; right: 10px; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+        .lc-bl { bottom: 10px; left: 10px; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+        .lc-br { bottom: 10px; right: 10px; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+        
+        .lens-laser {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 3px;
+            background: #25d366;
+            box-shadow: 0 0 15px 5px rgba(37, 211, 102, 0.4);
+            animation: lensScan 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            z-index: 3;
+        }
+        @keyframes lensScan {
+            0% { top: 10px; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: calc(100% - 10px); opacity: 0; }
+        }
+        .lens-dots {
+            position: absolute;
+            display: flex; gap: 8px;
+            z-index: 4;
+        }
+        .lens-dot {
+            width: 6px; height: 6px; background: white; border-radius: 50%;
+            animation: pulseDot 1.5s infinite;
+        }
+        @keyframes pulseDot { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.5); opacity: 1; } }
+
+    </style>
+</head>
+<body class="h-[100dvh] w-full flex items-center justify-center p-0 sm:p-4 overflow-hidden relative">
+
+<!-- شاشة التحميل الافتتاحية -->
+<div id="splash-screen">
+    <div class="loader-ring mb-6"></div>
+    <h1 class="text-3xl font-black text-white tracking-tight flex items-center gap-2">
+        jabbar<span class="text-amber-400">.com</span>
+    </h1>
+    <p class="text-emerald-100 mt-3 text-sm font-bold opacity-80">تحميل محركات الذكاء الاصطناعي المتقدمة...</p>
+</div>
+
+<!-- زر الاتصال العائم -->
+<button onclick="openWhatsApp()" class="absolute top-4 left-4 z-50 bg-[#25D366] hover:bg-[#1ebd5a] text-white p-3.5 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 flex items-center gap-2 border border-white/20">
+    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</button>
+
+<!-- الحاوية الرئيسية بمرونة عامودية صارمة Flex-Col -->
+<div class="w-full max-w-lg h-full bg-white sm:rounded-[2rem] shadow-2xl flex flex-col overflow-hidden relative border border-slate-700/20">
+    
+    <div class="flex-none px-4 py-3 bg-[#075e54] text-white flex items-center justify-between relative z-10 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center font-black text-[#075e54] text-xl border-2 border-white/20 shadow-sm animate-pulse">J</div>
+                <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#075e54]"></span>
+            </div>
+            <div>
+                <div class="flex items-center gap-1.5">
+                    <h1 class="text-sm sm:text-base font-bold tracking-tight">jabbar<span class="text-amber-400">.com</span></h1>
+                    <span class="bg-[#25d366] text-white p-0.5 rounded-full flex items-center justify-center w-3.5 h-3.5">
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="4"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </span>
+                </div>
+                <div class="text-[10px] sm:text-xs text-emerald-100 flex items-center gap-1">المساعد الذكي الموثق</div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 text-white">
+            <button onclick="toggleCartDrawer(true)" class="relative p-2 hover:bg-white/10 rounded-full transition active:scale-95 focus:outline-none" title="سلة المشتريات">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                <span id="cart-count-badge" class="absolute top-0 right-0 bg-amber-500 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-black shadow-sm hidden transform scale-100 transition-transform">0</span>
+            </button>
+
+            <div class="relative group">
+                <button class="p-2 hover:bg-white/10 rounded-full transition focus:outline-none" id="menu-trigger">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                </button>
+                <div id="header-dropdown" class="hidden absolute left-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 py-1 text-slate-800 text-sm z-50">
+                    <a href="#" onclick="resetSystem(); return false;" class="block px-4 py-3 hover:bg-slate-50 font-semibold text-slate-700">🔄 تسجيل خروج / مستخدم جديد</a>
+                    <hr class="border-slate-50">
+                    <a href="#" onclick="openWhatsApp('أحتاج للمساعدة الفنية الفورية'); return false;" class="block px-4 py-3 hover:bg-slate-50 text-[#075e54] font-bold">💬 دعم فني مباشر</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- مساحة المحادثة تم إعطاؤها flex-1 لتأخذ المساحة المتبقية فقط -->
+    <div id="chat-area" class="chat-wallpaper flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-[#efeae2] chat-scroll relative">
+        <!-- الرسائل تضاف هنا -->
+    </div>
+
+    <!-- حاوية سفلية ثابتة تضم الإدخال والردود السريعة لمنع التداخل -->
+    <div class="flex-none w-full relative z-20 flex flex-col bg-transparent">
+        
+        <!-- مؤشر الكتابة (يظهر فوق الردود السريعة) -->
+        <div id="typing-indicator" class="hidden absolute bottom-full right-4 mb-2 bg-white px-4 py-2.5 rounded-2xl rounded-tr-sm shadow-sm border border-slate-200/60 msg-animate z-30">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500">جاري تحليل البيانات المعمقة...</span>
+                <div class="flex gap-1"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>
+            </div>
+        </div>
+
+        <!-- الردود السريعة (تظهر فوق الإدخال وتأخذ مساحة تلقائية) -->
+        <div id="quick-replies" class="w-full px-4 py-2 bg-gradient-to-t from-[#efeae2] via-[#efeae2]/90 to-transparent flex flex-wrap gap-2 empty:hidden justify-end max-h-[120px] overflow-y-auto chat-scroll"></div>
+
+        <!-- حقل الإدخال مع الكاميرا -->
+        <div id="input-container" class="w-full p-3 sm:p-4 glass-input flex items-center gap-2 transition-all">
+            <div class="flex-1 relative flex items-center bg-white rounded-full border border-slate-200 shadow-inner overflow-hidden pr-2 focus-within:border-[#075e54] focus-within:ring-1 focus-within:ring-[#075e54] transition-all">
+                <button id="camera-btn" onclick="document.getElementById('camera-input').click()" class="hidden p-2.5 text-slate-400 hover:text-[#075e54] transition bg-slate-50 hover:bg-slate-100 rounded-full m-1 focus:outline-none" title="عدسة جبار للبحث بالصور">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden">
+                
+                <input type="text" id="user-input" disabled
+                       class="w-full bg-transparent text-slate-800 placeholder-slate-400 px-2 py-3.5 focus:outline-none text-sm font-medium transition-all duration-300 disabled:opacity-50 disabled:bg-slate-50"
+                       placeholder="جاري تحميل قاعدة البيانات..." autocomplete="off">
+            </div>
+            <button id="send-btn" disabled class="w-12 h-12 shrink-0 bg-[#075e54] hover:bg-[#004a3e] text-white rounded-full flex items-center justify-center transition-all duration-300 shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-5 h-5 transform rotate-180 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="cart-drawer" class="hidden absolute inset-0 bg-slate-900/50 z-40 flex justify-end transition-opacity duration-300 opacity-0 backdrop-blur-sm">
+        <div class="w-[85%] sm:w-[350px] bg-slate-50 h-full shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 rounded-l-2xl overflow-hidden">
+            <div class="flex-none p-4 bg-white text-slate-800 flex justify-between items-center shadow-sm relative z-10">
+                <div class="flex items-center gap-2">
+                    <span class="p-2 bg-emerald-100 text-[#075e54] rounded-lg">🛒</span>
+                    <h3 class="font-black text-sm">مراجعة السلة</h3>
+                </div>
+                <button onclick="toggleCartDrawer(false)" class="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full font-bold transition">&times;</button>
+            </div>
+            
+            <div id="cart-drawer-items" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- عناصر السلة -->
+            </div>
+            
+            <div class="flex-none p-5 border-t border-slate-200 bg-white shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="font-bold text-slate-500 text-xs sm:text-sm">الإجمالي المطلوب:</span>
+                    <span id="cart-drawer-total" class="text-xl font-black text-[#075e54]">0 ج.م</span>
+                </div>
+                <button onclick="triggerInvoiceProcess()" class="w-full bg-[#075e54] hover:bg-[#004a3e] text-white font-bold py-3.5 rounded-xl shadow-lg transition active:scale-95 text-center flex justify-center items-center gap-2 text-sm">
+                    تأكيد وإنشاء الفاتورة 🧮
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="invoice-area" class="hidden absolute inset-0 bg-[#f1f5f9] overflow-y-auto z-50 flex flex-col">
+        <div class="bg-gradient-to-b from-[#075e54] to-[#128c7e] px-6 pt-8 pb-14 text-center rounded-b-[2rem] shadow-xl relative flex-none">
+            <button onclick="backToChatFromInvoice()" class="absolute top-4 right-4 text-white hover:text-emerald-200 font-bold bg-black/10 rounded-full p-2 backdrop-blur-md">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            </button>
+            <div class="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center mx-auto mb-3 border border-white/30 mt-2">
+                <svg class="w-7 h-7 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <h2 class="text-lg sm:text-xl font-black text-white tracking-wide">تم تجهيز الفاتورة بنجاح!</h2>
+        </div>
+
+        <div class="px-5 -mt-10 flex-1 flex flex-col pb-6 relative z-10">
+            <div class="bg-white rounded-2xl p-5 shadow-xl border border-slate-100 flex-1 relative flex flex-col">
+                <div class="flex-none flex justify-between items-end border-b-2 border-dashed border-slate-200 pb-3 mb-4">
+                    <div>
+                        <p class="text-[10px] text-slate-400 font-bold mb-1">رقم الإيصال</p>
+                        <p id="invoice-id" class="text-sm font-mono font-black text-slate-800">#000000</p>
+                    </div>
+                    <div class="text-left">
+                        <p class="text-[10px] text-slate-400 font-bold mb-1">التاريخ</p>
+                        <p id="invoice-date" class="text-[11px] font-bold text-slate-600">-</p>
+                    </div>
+                </div>
+
+                <div class="flex-none bg-slate-50 rounded-xl p-3 mb-4 space-y-1.5 text-[11px] sm:text-xs">
+                    <div class="flex justify-between"><span class="text-slate-500 font-bold">العميل:</span><span id="invoice-name" class="font-black text-slate-800">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500 font-bold">الهاتف:</span><span id="invoice-phone" class="font-bold text-slate-800" dir="ltr">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500 font-bold">العنوان:</span><span id="invoice-address" class="font-bold text-slate-800 text-left truncate w-40">-</span></div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto pr-1">
+                    <p class="text-[10px] font-black text-slate-400 mb-2 uppercase">المنتجات المطلوبة</p>
+                    <ul id="invoice-items" class="space-y-2 border-b border-slate-100 pb-3"></ul>
+                </div>
+
+                <div class="flex-none mt-auto pt-3 border-t border-slate-100 flex justify-between items-center bg-emerald-50/50 -mx-5 -mb-5 px-5 py-4 rounded-b-2xl">
+                    <span class="text-slate-600 font-black text-xs sm:text-sm">الإجمالي الكلي:</span>
+                    <span id="invoice-total" class="text-lg sm:text-xl font-black text-[#075e54]">0 ج.م</span>
+                </div>
+            </div>
+
+            <div class="flex-none mt-5 space-y-2.5">
+                <button onclick="sendInvoiceToWhatsApp()" class="w-full bg-[#25D366] hover:bg-[#1ebd5a] text-white font-extrabold py-3.5 rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 active:scale-95 text-sm">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    تأكيد وإرسال الطلب للإدارة
+                </button>
+                <button id="new-chat-btn" class="w-full bg-white text-slate-500 font-bold py-3 rounded-xl transition border border-slate-200 hover:bg-slate-50 active:scale-95 text-xs sm:text-sm">
+                    طلب جديد (تصفير السلة)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getDatabase, ref, get, set, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+    const firebaseConfig = { databaseURL: "https://project-46b45-default-rtdb.firebaseio.com/" };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const WA_NUMBER = "201223881051";
+
+    let chatState = 'WELCOME'; 
+    let customerData = { code: '', name: '', phone: '', address: '' };
+    let temporaryCustomerList = [];
+    let cart = []; 
+    let dbItems = []; 
+    let currentInvoiceId = '';
+
+    const chatArea = document.getElementById('chat-area');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const quickReplies = document.getElementById('quick-replies');
+    const invoiceArea = document.getElementById('invoice-area');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const cameraInput = document.getElementById('camera-input');
+    const splashScreen = document.getElementById('splash-screen');
+    const cameraBtn = document.getElementById('camera-btn');
+
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            splashScreen.style.opacity = '0';
+            setTimeout(() => splashScreen.style.visibility = 'hidden', 800);
+            initChat();
+        }, 1500);
+    });
+
+    // UI Dropdown
+    document.getElementById('menu-trigger').addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.getElementById('header-dropdown').classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => document.getElementById('header-dropdown').classList.add('hidden'));
+
+    // Sound FX
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playHapticSound(type) {
+        if (!audioCtx || audioCtx.state === 'suspended') return;
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        if (type === 'send') {
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'receive') {
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.08);
+            gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.22);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.22);
+        }
+    }
+    document.body.addEventListener('click', () => { if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); }, { once: true });
+
+    window.openWhatsApp = function(customText = '') {
+        const text = encodeURIComponent(customText || "مرحباً، أود التحدث إلى الدعم الفني الخاص بـ jabbar.com");
+        window.open(`https://wa.me/${WA_NUMBER}?text=${text}`, '_blank');
+    }
+
+    window.sendInvoiceToWhatsApp = function() {
+        const total = cart.reduce((s, i) => s + (Number(i.price) * i.qty), 0);
+        let msg = `*طلب جديد من منصة jabbar.com* 🛒\n\n`;
+        msg += `*🧾 رقم الطلب:* #${currentInvoiceId}\n`;
+        msg += `*👤 العميل:* ${customerData.name} (كود: ${customerData.code})\n`;
+        msg += `*📍 العنوان:* ${customerData.address}\n`;
+        msg += `*📞 الهاتف:* ${customerData.phone}\n\n`;
+        msg += `*📦 تفاصيل الطلب:*\n`;
+        cart.forEach((item, index) => { msg += `${index + 1}. ${item.name} (×${item.qty}) = ${Number(item.price) * item.qty} ج.م\n`; });
+        msg += `\n*💰 الإجمالي المطلوب:* ${total} ج.م\n\nالرجاء تأكيد واعتماد الطلب.`;
+        window.openWhatsApp(msg);
+    }
+
+    // =========================================================================
+    // خوارزمية الجذر الصوتي المعمقة (Phonetic Root Algorithm)
+    // =========================================================================
+    function getPhoneticRoot(word) {
+        if (!word) return "";
+        let w = word.toLowerCase();
+        
+        w = w.replace(/ش/g, 'sh').replace(/خ/g, 'kh').replace(/غ/g, 'gh')
+             .replace(/ث/g, 'th').replace(/ذ/g, 'th');
+             
+        w = w.replace(/[ب]/g, 'b').replace(/[تط]/g, 't').replace(/[سص]/g, 's')
+             .replace(/[ج]/g, 'j').replace(/[حھه]/g, 'h').replace(/[دض]/g, 'd')
+             .replace(/[زظ]/g, 'z').replace(/[ر]/g, 'r').replace(/[ع]/g, 'a')
+             .replace(/[ف]/g, 'f').replace(/[قك]/g, 'k').replace(/[ل]/g, 'l')
+             .replace(/[م]/g, 'm').replace(/[ن]/g, 'n');
+             
+        w = w.replace(/[اأإآوي]/g, '').replace(/[ًٌٍُِّ~ْـ]/g, '');
+
+        w = w.replace(/ph/g, 'f').replace(/v/g, 'f').replace(/p/g, 'b')
+             .replace(/ck/g, 'k').replace(/c/g, 'k').replace(/x/g, 'ks')
+             .replace(/q/g, 'k').replace(/g/g, 'j').replace(/y/g, '');
+
+        w = w.replace(/[aeiou]/g, '');
+        w = w.replace(/(.)\1+/g, '$1');
+
+        return w.trim();
+    }
+
+    function normalizeText(text) {
+        if (!text) return "";
+        return text.toLowerCase()
+            .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+            .replace(/[ًٌٍُِّ~ْـ]/g, '').trim();
+    }
+
+    function levenshteinDistance(a, b) {
+        if (a.length === 0) return b.length;
+        if (b.length === 0) return a.length;
+        const matrix = [];
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+        for (let i = 1; i <= b.length; i++) {
+            for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) matrix[i][j] = matrix[i - 1][j - 1];
+                else matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+            }
+        }
+        return matrix[b.length][a.length];
+    }
+
+    function formatMessageText(text) {
+        return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    /* تحديث مهم: التأكد من عمل السكرول بشكل صحيح للحاوية الجديدة المرنة */
+    async function addMessage(text, sender, buttons = [], simulateTyping = false, isMenu = false) {
+        quickReplies.innerHTML = '';
+        if (sender === 'bot' && simulateTyping) {
+            typingIndicator.classList.remove('hidden');
+            chatArea.scrollTop = chatArea.scrollHeight;
+            const typingTime = Math.min(1800, Math.max(700, text.length * 15));
+            await new Promise(r => setTimeout(r, typingTime));
+            typingIndicator.classList.add('hidden');
+        }
+
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'} w-full msg-animate mb-2`;
+
+        const formattedText = formatMessageText(text);
+
+        if (isMenu && sender === 'bot') {
+            const menuHtml = `
+            <div class="w-[85%] bg-white p-4 rounded-2xl shadow-sm border border-slate-100 card-shadow">
+                <p class="text-[13px] sm:text-sm font-medium text-slate-800 mb-3 leading-relaxed">${formattedText}</p>
+                <div class="space-y-2" id="menu-btns-${Date.now()}"></div>
+            </div>`;
+            wrapper.innerHTML = menuHtml;
+            chatArea.appendChild(wrapper);
+            const menuContainer = wrapper.querySelector('div > div:last-child');
+            buttons.forEach(btn => {
+                const b = document.createElement('button');
+                b.className = `w-full text-right px-4 py-2.5 bg-slate-50 hover:bg-emerald-50 rounded-xl text-xs sm:text-sm font-bold text-slate-700 transition-all border border-slate-100 flex items-center justify-between group focus:outline-none focus:ring-2 focus:ring-emerald-200`;
+                b.innerHTML = `<span>${btn.label}</span> <span class="text-slate-400 group-hover:text-emerald-600 group-hover:-translate-x-1 transform transition">&larr;</span>`;
+                b.onclick = () => handleButtonAction(btn.action, btn.label);
+                menuContainer.appendChild(b);
+            });
+        } else {
+            const bubble = document.createElement('div');
+            const dateStr = new Date().toLocaleTimeString('ar-EG', {hour: '2-digit', minute:'2-digit', hour12: true});
+            
+            if (sender === 'user') {
+                bubble.className = `max-w-[85%] px-4 py-2.5 rounded-2xl rounded-tl-none shadow-sm bg-[#d9fdd3] text-slate-800 text-sm relative flex flex-col items-end`;
+                bubble.innerHTML = `<p class="w-full text-right font-medium leading-relaxed">${formattedText}</p><div class="flex items-center gap-1 mt-1 text-[9px] text-slate-500 font-bold self-end"><span>${dateStr}</span><span class="text-blue-500 flex"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M21 7L9 19l-5.5-5.5 1.41-1.41L9 16.17 19.59 5.59 21 7z"/></svg></span></div>`;
+            } else {
+                bubble.className = `max-w-[85%] px-4 py-3 rounded-2xl rounded-tr-none shadow-sm bg-white text-slate-800 text-[13px] sm:text-sm relative flex flex-col border border-slate-100`;
+                bubble.innerHTML = `<p class="w-full text-right font-medium leading-relaxed">${formattedText}</p><span class="text-[9px] text-slate-400 font-bold self-start mt-1">${dateStr}</span>`;
+            }
+            wrapper.appendChild(bubble);
+            chatArea.appendChild(wrapper);
+
+            if (buttons.length > 0) {
+                buttons.forEach(btn => {
+                    const btnEl = document.createElement('button');
+                    btnEl.className = `px-4 py-2 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-700 hover:text-[#075e54] hover:bg-slate-50 shadow-sm transition-all active:scale-95 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-200`;
+                    btnEl.innerText = btn.label;
+                    btnEl.onclick = () => handleButtonAction(btn.action, btn.label);
+                    quickReplies.appendChild(btnEl);
+                });
+            }
+        }
+        playHapticSound(sender === 'user' ? 'send' : 'receive');
+        
+        // التمرير التلقائي للحاوية المخصصة
+        setTimeout(() => {
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }, 50);
+    }
+
+    async function loadProducts() {
+        try {
+            const snap = await get(ref(db, 'items'));
+            if (snap.exists()) {
+                const data = snap.val();
+                dbItems = Object.keys(data).map(k => {
+                    const itemName = data[k].name || data[k].اسم || k;
+                    return { 
+                        id: k, 
+                        name: itemName, 
+                        price: data[k].price || data[k].السعر || 0,
+                        phoneticRoot: getPhoneticRoot(itemName)
+                    };
+                });
+            }
+        } catch (e) { console.error("Error loading products", e); }
+    }
+
+    window.toggleCartDrawer = function(open) {
+        const drawer = document.getElementById('cart-drawer');
+        const inner = drawer.querySelector('div');
+        if (open) {
+            drawer.classList.remove('hidden');
+            setTimeout(() => { drawer.classList.add('opacity-100'); inner.classList.remove('translate-x-full'); }, 10);
+            renderCartDrawer();
+        } else {
+            drawer.classList.remove('opacity-100');
+            inner.classList.add('translate-x-full');
+            setTimeout(() => drawer.classList.add('hidden'), 300);
+        }
+    }
+
+    function renderCartDrawer() {
+        const container = document.getElementById('cart-drawer-items');
+        container.innerHTML = '';
+        if (cart.length === 0) {
+            container.innerHTML = `<div class="h-48 flex flex-col items-center justify-center text-slate-400 text-xs sm:text-sm font-bold"><span class="text-4xl mb-3 opacity-50">🛒</span><span>السلة فارغة حالياً</span></div>`;
+            document.getElementById('cart-drawer-total').innerText = "0 ج.م";
+            updateCartBadge(); return;
+        }
+
+        cart.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = "bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm text-xs sm:text-sm";
+            card.innerHTML = `
+                <div class="flex-1 ml-2">
+                    <h4 class="font-extrabold text-slate-800 line-clamp-1">${item.name}</h4>
+                    <span class="text-[#075e54] font-black">${item.price} ج</span>
+                </div>
+                <div class="flex items-center gap-1.5 bg-slate-50 p-1 rounded-lg border border-slate-100">
+                    <button onclick="changeQty(${index}, -1)" class="w-6 h-6 bg-white hover:bg-slate-200 text-slate-800 rounded shadow-sm font-bold flex items-center justify-center focus:outline-none">-</button>
+                    <span class="font-black w-4 text-center text-slate-800">${item.qty}</span>
+                    <button onclick="changeQty(${index}, 1)" class="w-6 h-6 bg-white hover:bg-slate-200 text-slate-800 rounded shadow-sm font-bold flex items-center justify-center focus:outline-none">+</button>
+                </div>
+                <button onclick="removeItemFromCart(${index})" class="text-red-400 hover:text-red-600 mr-2 p-1 focus:outline-none">🗑️</button>`;
+            container.appendChild(card);
+        });
+        const total = cart.reduce((s, i) => s + (Number(i.price) * i.qty), 0);
+        document.getElementById('cart-drawer-total').innerText = `${total} ج.م`;
+        updateCartBadge();
+    }
+
+    window.changeQty = function(idx, offset) { cart[idx].qty += offset; if (cart[idx].qty <= 0) cart.splice(idx, 1); renderCartDrawer(); playHapticSound('send'); }
+    window.removeItemFromCart = function(idx) { cart.splice(idx, 1); renderCartDrawer(); playHapticSound('send'); }
+    
+    function updateCartBadge() {
+        const badge = document.getElementById('cart-count-badge');
+        const count = cart.reduce((s, i) => s + i.qty, 0);
+        badge.innerText = count;
+        if (count > 0) { badge.classList.remove('hidden'); badge.classList.add('scale-100'); } 
+        else { badge.classList.add('hidden'); badge.classList.remove('scale-100'); }
+    }
+
+    // =========================================================================
+    // القراءة العميقة للصور
+    // =========================================================================
+    cameraInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        userInput.disabled = true;
+        sendBtn.disabled = true;
+        cameraBtn.style.pointerEvents = 'none';
+
+        await addMessage("📷 [تم إرفاق صورة للبحث]", 'user');
+        
+        const scannerId = "scanner-" + Date.now();
+        await addMessage(`
+            <div id="${scannerId}" class='flex flex-col gap-2'>
+                <div class="lens-scanner">
+                    <div class="lens-corner lc-tl"></div><div class="lens-corner lc-tr"></div>
+                    <div class="lens-corner lc-bl"></div><div class="lens-corner lc-br"></div>
+                    <div class="lens-laser"></div>
+                    <div class="lens-dots">
+                        <div class="lens-dot" style="animation-delay: 0s"></div>
+                        <div class="lens-dot" style="animation-delay: 0.3s"></div>
+                        <div class="lens-dot" style="animation-delay: 0.6s"></div>
+                    </div>
+                </div>
+                <span class="text-[10px] sm:text-xs font-bold text-slate-500 text-center mt-1">جاري القراءة العميقة ومطابقة الجذور الصوتية للكلمات...</span>
+            </div>`, 'bot', [], true);
+        
+        try {
+            const worker = await Tesseract.createWorker('ara+eng');
+            await worker.setParameters({ tessedit_pageseg_mode: Tesseract.PSM.AUTO });
+            const ret = await worker.recognize(file);
+            const rawOcrText = ret.data.text;
+            await worker.terminate();
+            
+            const ocrWords = rawOcrText.split(/[\s\n\r,.-]+/).filter(w => w.length > 2);
+            
+            if (ocrWords.length > 0) {
+                let scoredItems = dbItems.map(item => {
+                    let score = 0;
+                    const itemNameClean = normalizeText(item.name);
+                    const itemPhonetic = item.phoneticRoot;
+
+                    ocrWords.forEach(word => {
+                        const cleanWord = normalizeText(word);
+                        const wordPhonetic = getPhoneticRoot(cleanWord);
+                        
+                        if (itemNameClean.includes(cleanWord)) score += 100;
+                        if (wordPhonetic.length >= 3 && itemPhonetic.includes(wordPhonetic)) score += 80;
+                        if(levenshteinDistance(cleanWord, itemNameClean) <= 2) score += 50;
+                    });
+
+                    return { item, score };
+                }).filter(obj => obj.score > 0).sort((a, b) => b.score - a.score);
+
+                if (scoredItems.length > 0) {
+                    const topResults = scoredItems.slice(0, 4).map(i => ({ label: `🛍️ ${i.item.name} (${i.item.price} ج)`, action: `CHOOSE_ITEM_${i.item.id}` }));
+                    topResults.push({ label: "🔍 البحث عن منتج آخر", action: "SEARCH_ANOTHER" });
+                    
+                    addMessage(`✅ تحليل الصورة مكتمل بدقة. هل تقصد أحد هذه المنتجات؟`, 'bot', topResults, true);
+                } else {
+                    showOcrFailMessage();
+                }
+            } else {
+                showOcrFailMessage();
+            }
+        } catch (err) {
+            console.error("Lens Error", err);
+            showOcrFailMessage();
+        } finally {
+            const scannerWrapper = document.getElementById(scannerId);
+            if (scannerWrapper) {
+                const bubble = scannerWrapper.closest('.msg-animate');
+                if (bubble) bubble.remove();
+            }
+            userInput.disabled = false;
+            sendBtn.disabled = false;
+            cameraBtn.style.pointerEvents = 'auto';
+            userInput.focus();
+        }
+        cameraInput.value = ''; 
+    });
+
+    function showOcrFailMessage() {
+        addMessage("عذراً، لم تتمكن خوارزمية الرؤية من استخلاص نص واضح يطابق منتجاتنا. تأكد من إضاءة الصورة وإظهار اسم المنتج بوضوح.", 'bot', [
+            { label: "📸 إعادة التصوير", action: "TRIGGER_CAMERA" },
+            { label: "⌨️ كتابة اسم المنتج", action: "SEARCH_ANOTHER" },
+            { label: "💬 الدعم الفني", action: "SUPPORT" }
+        ], true);
+        chatState = 'IDLE';
+    }
+
+    // =========================================================================
+    // البحث المكتوب المتقدم
+    // =========================================================================
+    function searchProducts(query) {
+        let cleanQuery = normalizeText(query);
+        const queryPhonetic = getPhoneticRoot(cleanQuery);
+        let matches = [];
+
+        matches = dbItems.filter(item => normalizeText(item.name).includes(cleanQuery));
+
+        if (matches.length === 0 && queryPhonetic.length > 1) {
+            matches = dbItems.filter(item => {
+                return item.phoneticRoot.includes(queryPhonetic);
+            });
+        }
+
+        if (matches.length === 0) {
+            matches = dbItems.map(item => {
+                let bestDist = 999;
+                normalizeText(item.name).split(' ').forEach(w => {
+                    const d = levenshteinDistance(cleanQuery, w);
+                    if (d < bestDist) bestDist = d;
+                });
+                return { item, dist: bestDist };
+            }).filter(obj => obj.dist <= 2).sort((a, b) => a.dist - b.dist).map(obj => obj.item);
+        }
+
+        if (matches.length > 0) {
+            const btns = matches.slice(0, 5).map(i => ({ label: `🛍️ ${i.name} (${i.price} ج)`, action: `CHOOSE_ITEM_${i.id}` }));
+            btns.push({ label: "🔍 منتج آخر (غير موجود بالقائمة)", action: "SEARCH_ANOTHER" });
+            btns.push({ label: "🧮 عرض السلة والدفع", action: "VIEW_CART" });
+            
+            addMessage("إليك النتائج الأكثر تطابقاً مع بحثك:", 'bot', btns, true);
+            chatState = 'SEARCHING_PRODUCT'; 
+        } else {
+            addMessage(`عذراً، لم أتمكن من العثور على منتج يطابق "**${query}**".`, 'bot', [
+                { label: "🔍 المحاولة باسم آخر", action: "SEARCH_ANOTHER" },
+                { label: "📷 البحث بصورة المنتج", action: "TRIGGER_CAMERA" },
+                { label: "💬 التحدث لموظف الإدارة", action: "SUPPORT" }
+            ], true);
+            chatState = 'IDLE'; 
+        }
+    }
+
+    // --- معالجة الفاتورة ---
+    window.triggerInvoiceProcess = function() {
+        if (cart.length === 0) {
+            addMessage("السلة فارغة! يرجى إضافة منتجات أولاً قبل طلب الفاتورة.", "bot", [], true);
+            toggleCartDrawer(false);
+            return;
+        }
+        
+        toggleCartDrawer(false);
+        // تم التعديل لمنع إخفاء الشات بل تغطيته
+        invoiceArea.classList.remove('hidden');
+
+        const total = cart.reduce((s, i) => s + (Number(i.price) * i.qty), 0);
+        currentInvoiceId = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        document.getElementById('invoice-id').innerText = `#${currentInvoiceId}`;
+        document.getElementById('invoice-date').innerText = new Date().toLocaleString('ar-EG');
+        document.getElementById('invoice-name').innerText = customerData.name || "لم يتم التحديد";
+        document.getElementById('invoice-phone').innerText = customerData.phone || "لم يتم التحديد";
+        document.getElementById('invoice-address').innerText = customerData.address || "لم يتم التحديد";
+
+        const tbody = document.getElementById('invoice-items');
+        tbody.innerHTML = '';
+        cart.forEach(item => {
+            tbody.innerHTML += `<li class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0 text-xs sm:text-sm"><span class="font-bold text-slate-700">${item.name} <span class="text-slate-400">×${item.qty}</span></span><span class="font-black text-amber-500">${Number(item.price) * item.qty} ج</span></li>`;
+        });
+        document.getElementById('invoice-total').innerText = `${total} ج.م`;
+        playHapticSound('receive');
+
+        const payload = { 
+            invoiceNumber: currentInvoiceId, customerCode: customerData.code, 
+            customerName: customerData.name, customerPhone: customerData.phone, 
+            items: cart, totalPrice: total, status: "معلق", createdAt: new Date().toISOString() 
+        };
+        
+        set(ref(db, `invoices/${currentInvoiceId}`), payload)
+            .then(() => console.log("تم حفظ الفاتورة بنجاح"))
+            .catch(e => console.error("خطأ في حفظ الفاتورة:", e));
+    }
+
+    window.backToChatFromInvoice = function() {
+        invoiceArea.classList.add('hidden');
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // =========================================================================
+    // تهيئة النظام والمحادثة
+    // =========================================================================
+    async function initChat() {
+        await loadProducts();
+        addMessage("مرحباً بك في نظام **jabbar.com** الذكي الموثق.<br><br>لخدمتك بشكل أسرع، يرجى إدخال **كود العميل** أو **رقم الهاتف** الخاص بك:", "bot", [], true);
+        chatState = 'VERIFYING';
+        userInput.disabled = false; sendBtn.disabled = false;
+        cameraBtn.classList.add('hidden');
+        userInput.placeholder = "اكتب الكود أو الرقم هنا...";
+        userInput.focus();
+    }
+
+    function showWelcomeMenu() {
+        addMessage(`أهلاً بك مجدداً يا **${customerData.name}**! 👋<br>كيف يمكنني مساعدتك اليوم؟`, 'bot', [
+            { label: "🛍️ طلب منتجات وأدوية", action: "SHOPPING" },
+            { label: "💬 محادثة مختص الإدارة (واتساب)", action: "SUPPORT" }
+        ], true, true);
+        chatState = 'MAIN_MENU';
+        cameraBtn.classList.remove('hidden');
+        userInput.placeholder = "اكتب رسالتك أو ابحث عن منتج...";
+    }
+
+    async function verifyUser(input) {
+        const cleanInput = input.trim();
+        if (!cleanInput) return;
+
+        addMessage("جاري فحص وتوثيق البيانات في قاعدة العملاء المعتمدة...", "bot", [], true);
+        temporaryCustomerList = [];
+        const isCodeOnly = cleanInput.length < 8 && !isNaN(cleanInput);
+
+        if (isCodeOnly) {
+            try {
+                const snap = await get(child(ref(db), `customers/${cleanInput}`));
+                if (snap.exists()) {
+                    const data = snap.val();
+                    temporaryCustomerList.push({
+                        code: cleanInput, name: data.name || "عميل", phone: data.phone || "",
+                        address: typeof data.address === 'string' ? data.address : (data.address?.text || "غير محدد")
+                    });
+                }
+            } catch (e) { console.error(e); }
+        } else {
+            try {
+                const cleanInputDigits = cleanInput.replace(/[^0-9]/g, '');
+                const allSnap = await get(ref(db, 'customers'));
+                if (allSnap.exists()) {
+                    const allCust = allSnap.val();
+                    for (const key in allCust) {
+                        const cust = allCust[key];
+                        if (cust.phone) {
+                            const dbPhoneDigits = cust.phone.replace(/[^0-9]/g, '');
+                            if (dbPhoneDigits.includes(cleanInputDigits) || cleanInputDigits.includes(dbPhoneDigits)) {
+                                temporaryCustomerList.push({
+                                    code: key, name: cust.name || "عميل", phone: cust.phone,
+                                    address: typeof cust.address === 'string' ? cust.address : (cust.address?.text || "غير محدد")
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        if (temporaryCustomerList.length > 0) {
+            let msg = `وجدنا بيانات مسجلة مطابقة. هل هذه البيانات صحيحة؟<br>`;
+            temporaryCustomerList.forEach((c) => {
+                msg += `<div class="mt-3 text-xs bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-slate-700 shadow-sm">
+                        <strong class="text-slate-800 text-sm">${c.name}</strong><br>
+                        📞 ${c.phone}<br>📍 ${c.address}
+                        </div>`;
+            });
+            const btns = temporaryCustomerList.map((c, i) => ({ label: "✅ نعم، المتابعة بهذه البيانات", action: `CONFIRM_CUST_${i}` }));
+            btns.push({ label: "👤 تسجيل كمستخدم جديد", action: "REGISTER_NEW" });
+            addMessage(msg, "bot", btns, true);
+            chatState = 'CONFIRMING';
+        } else {
+            addMessage("لم نعثر على حساب مسجل يطابق هذه البيانات.<br>كيف تفضل المتابعة؟", "bot", [
+                { label: "🔍 المحاولة برقم آخر", action: "RETRY_SEARCH" },
+                { label: "📝 تسجيل حساب جديد", action: "REGISTER_NEW" }
+            ], true);
+            chatState = 'WAITING_DECISION';
+        }
+    }
+
+    async function registerCustomer(text) {
+        if (chatState === 'REG_NAME') {
+            customerData.name = text;
+            addMessage(`أهلاً بك يا **${text}**! خطوة واحدة للتسجيل..<br>ما هو **رقم الهاتف** للتواصل؟`, "bot", [], true);
+            chatState = 'REG_PHONE';
+        } else if (chatState === 'REG_PHONE') {
+            customerData.phone = text;
+            addMessage("أخيراً، يرجى إدخال **العنوان التفصيلي** الخاص بك بدقة لضمان سرعة التوصيل:", "bot", [], true);
+            chatState = 'REG_ADDRESS';
+        } else if (chatState === 'REG_ADDRESS') {
+            customerData.address = text;
+            addMessage("يتم الآن إنشاء ملفك في النظام واعتمادك كعميل رسمي...", "bot", [], true);
+            const newCode = "C" + Math.floor(2000 + Math.random() * 8000);
+            customerData.code = newCode;
+            const payload = {
+                code: newCode, name: customerData.name, phone: customerData.phone,
+                address: customerData.address, branch: "الفرع الرئيسي", invType: "قطاعي",
+                location: { name: customerData.address }, notes: "منصة المساعد الذكي", ordType: "دليفري", payType: "نقدي", region: "غير محدد"
+            };
+            try { 
+                await set(ref(db, `customers/${newCode}`), payload); 
+                addMessage(`تم تسجيلك بنجاح! كود العميل الخاص بك للطلبات القادمة هو: **${newCode}**`, "bot", [], true);
+                setTimeout(() => showWelcomeMenu(), 1500);
+            } 
+            catch (e) { console.error(e); showWelcomeMenu(); }
+        }
+    }
+
+    window.resetSystem = function() {
+        chatState = 'WELCOME'; customerData = { code: '', name: '', phone: '', address: '' };
+        temporaryCustomerList = []; cart = []; currentInvoiceId = ''; updateCartBadge();
+        const tbody = document.getElementById('invoice-items'); if (tbody) tbody.innerHTML = '';
+        chatArea.innerHTML = ''; quickReplies.innerHTML = ''; userInput.value = '';
+        invoiceArea.classList.add('hidden'); toggleCartDrawer(false);
+        initChat();
+    }
+
+    window.handleButtonAction = function(action, label) {
+        if(action !== 'VIEW_CART') addMessage(label, 'user');
+        
+        if (action === 'SHOPPING') {
+            addMessage("تفضل، اكتب اسم المنتج، أو اضغط على أيقونة الكاميرا بالأسفل (📷) لتصويره وسأبحث عنه فوراً.", 'bot', [], true);
+            chatState = 'SEARCHING_PRODUCT';
+        } else if (action === 'SEARCH_ANOTHER') {
+            addMessage("بالتأكيد، يرجى كتابة اسم المنتج الآخر الذي تبحث عنه:", 'bot', [], true);
+            chatState = 'SEARCHING_PRODUCT';
+        } else if (action === 'SUPPORT') {
+            addMessage("جاري تحويلك للمحادثة المباشرة مع فريق الدعم الفني لخدمتك بشكل أفضل...", 'bot', [], true);
+            setTimeout(() => window.openWhatsApp(), 2000);
+            chatState = 'IDLE';
+        } else if (action === 'VIEW_CART') {
+            toggleCartDrawer(true);
+        } else if (action === 'TRIGGER_CAMERA') {
+            cameraInput.click();
+        } else if (action === 'ADD_MORE_YES') {
+            addMessage("ممتاز، تفضل بكتابة اسم المنتج الإضافي:", 'bot', [], true);
+            chatState = 'SEARCHING_PRODUCT';
+        } else if (action.startsWith('CHOOSE_ITEM_')) {
+            const itemId = action.replace('CHOOSE_ITEM_', '');
+            const item = dbItems.find(i => i.id === itemId);
+            if (item) {
+                const existing = cart.find(i => i.id === item.id);
+                if (existing) existing.qty += 1;
+                else cart.push({ ...item, qty: 1 });
+                updateCartBadge();
+                addMessage(`تم إضافة **${item.name}** إلى سلة مشترياتك بنجاح ✅`, 'bot', [
+                    { label: "➕ إضافة منتج آخر", action: "ADD_MORE_YES" },
+                    { label: "🛒 مراجعة السلة وإنهاء الطلب", action: "VIEW_CART" }
+                ], true);
+                chatState = 'ASK_ADD_MORE';
+            }
+        } else if (action.startsWith('CONFIRM_CUST_')) {
+            const idx = parseInt(action.replace('CONFIRM_CUST_', ''));
+            const c = temporaryCustomerList[idx];
+            customerData = { code: c.code, name: c.name, phone: c.phone, address: c.address };
+            const phones = c.phone.split(/[,-\s/]+/).filter(p => p.trim().length > 5);
+            if (phones.length > 1) {
+                addMessage("الرجاء تحديد رقم الهاتف الأساسي لاعتماده في الطلب:", "bot", phones.map((p, i) => ({ label: `📞 ${p.trim()}`, action: `SELECT_PHONE_${i}` })), true);
+                chatState = 'SELECTING_PHONE';
+            } else {
+                customerData.phone = phones[0] || c.phone; showWelcomeMenu();
+            }
+        } else if (action.startsWith('SELECT_PHONE_')) {
+            const idx = parseInt(action.replace('SELECT_PHONE_', ''));
+            const phones = customerData.phone.split(/[,-\s/]+/).filter(p => p.trim().length > 5);
+            customerData.phone = phones[idx].trim(); showWelcomeMenu();
+        } else if (action === 'RETRY_SEARCH') {
+            addMessage("تفضل، يرجى إعادة كتابة الكود أو رقم الهاتف للبحث من جديد:", "bot", [], true);
+            chatState = 'VERIFYING';
+        } else if (action === 'REGISTER_NEW') {
+            addMessage("يسعدنا انضمامك لقائمة عملاء منصة جبار الموثقين! 🎉<br>يرجى كتابة **الاسم الكامل**:", "bot", [], true);
+            chatState = 'REG_NAME';
+        }
+    };
+
+    function handleUserInput() {
+        const text = userInput.value.trim();
+        if (!text) return;
+        addMessage(text, 'user');
+        userInput.value = '';
+
+        if (chatState === 'VERIFYING') verifyUser(text);
+        else if (chatState.startsWith('REG_')) registerCustomer(text);
+        else if (chatState === 'SEARCHING_PRODUCT') searchProducts(text);
+        else if (text.includes('انهاء') || text.includes('فاتورة') || text.includes('سلة') || text.includes('حساب')) toggleCartDrawer(true);
+        else addMessage("أنا هنا لخدمتك، يمكنك طلب منتج أو الضغط على زر الكاميرا للبحث بالصور.", "bot", [
+             { label: "🛍️ طلب منتجات", action: "SHOPPING" },
+             { label: "💬 التحدث للإدارة", action: "SUPPORT" }
+        ], true);
+    }
+
+    sendBtn.addEventListener('click', handleUserInput);
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserInput(); });
+    document.getElementById('new-chat-btn').addEventListener('click', resetSystem);
+
+</script>
+</body>
+</html>
